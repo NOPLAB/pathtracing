@@ -4,5 +4,5 @@ mod render;
 
 fn main() {
     let render = Render::new();
-    render.render(1920, 1080, 4, 2);
+    render.render(640, 480, 4, 2);
 }
