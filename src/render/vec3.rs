@@ -62,6 +62,10 @@ impl Vec3 {
             z: self.z / length,
         }
     }
+
+    pub fn max(&self) -> f64 {
+        self.x.max(self.y).max(self.z)
+    }
 }
 
 impl std::ops::Add for Vec3 {
@@ -164,7 +168,8 @@ fn test_vec3() {
     assert_eq!(v1.length(), 3.7416573867739413);
     assert_eq!(v1.squared_length(), 14.0);
     assert_eq!(
-        v1.unit_vector(),
+        v1.normalize(),
         Vec3::new(0.2672612419124244, 0.5345224838248488, 0.8017837257372732)
     );
+    assert_eq!(v1.max(), 3.0);
 }
