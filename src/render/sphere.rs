@@ -2,11 +2,11 @@ use super::{intersection::HitPoint, material::RefrectionType, ray::Ray, vec3::Ve
 
 #[derive(Debug, Clone, Copy)]
 pub struct Sphere {
-    radius: f64,
-    position: Vec3,
-    emission: Vec3,
-    color: Vec3,
-    reflection_type: RefrectionType,
+    pub radius: f64,
+    pub position: Vec3,
+    pub emission: Vec3,
+    pub color: Vec3,
+    pub reflection_type: RefrectionType,
 }
 
 impl Sphere {
