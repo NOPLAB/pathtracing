@@ -115,7 +115,7 @@ impl Scene {
         }
     }
 
-    pub fn spheres(&self, object_id: u32) -> &Sphere {
-        &self.spheres[object_id as usize]
+    pub fn spheres(&self) -> &[Sphere] {
+        &self.spheres
     }
 }
