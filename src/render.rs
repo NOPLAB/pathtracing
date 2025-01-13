@@ -1,3 +1,8 @@
+use std::{
+    sync::{Arc, Mutex},
+    thread, vec,
+};
+
 use material::{Color, IOR};
 use ppm::save_ppm;
 use random::XorShiftRandom;
@@ -22,6 +27,13 @@ const BACKGROUND_COLOR: Vec3 = Vec3 {
 const DEPTH: u32 = 5;
 const DEPTH_LIMIT: u32 = 64;
 
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+enum TaskStatus {
+    NotStarted,
+    Running,
+    Completed,
+}
+
 pub struct Render {
     scene: Scene,
 }
@@ -33,7 +45,7 @@ impl Render {
         }
     }
 
-    pub fn render(&self, width: u32, height: u32, samples: u32, supersamples: u32) {
+    pub fn render(&self, width: u32, height: u32, samples: u32, supersamples: u32, tasks: u32) {
         let camera_pos = Vec3::new(50.0, 52.0, 220.0);
         let camera_dir = Vec3::new(0.0, -0.04, -1.0).normalize();
         let camera_up = Vec3::new(0.0, 1.0, 0.0);
@@ -47,48 +59,118 @@ impl Render {
         let screen_y = screen_x.cross(camera_dir).normalize() * screen_height;
         let screen_center = camera_pos + camera_dir * screen_dist;
 
-        let mut image = vec![Vec3::new(0.0, 0.0, 0.0); (width * height) as usize];
+        let image = Arc::new(Mutex::new(vec![
+            Vec3::new(0.0, 0.0, 0.0);
+            (width * height) as usize
+        ]));
 
-        for y in 0..height {
-            println!("Rendering (y = {} / {})", y, height);
+        let tasks_states = Arc::new(Mutex::new(vec![TaskStatus::NotStarted; height as usize]));
 
-            let mut rnd = XorShiftRandom::new(y + 1 as u32);
+        let arc_image = image.clone();
+        thread::scope(move |s| loop {
+            let running_tasks = tasks_states
+                .lock()
+                .unwrap()
+                .iter()
+                .filter(|t| **t == TaskStatus::Running)
+                .count();
 
-            for x in 0..width {
-                let image_index = (height - y - 1) * width + x;
+            if running_tasks >= tasks as usize {
+                thread::sleep(std::time::Duration::from_millis(100));
+                continue;
+            }
 
-                for sy in 0..supersamples {
-                    for sx in 0..supersamples {
-                        let mut accumulated_radiance = Color::new(0.0, 0.0, 0.0);
+            if tasks_states
+                .lock()
+                .unwrap()
+                .iter()
+                .all(|t| *t == TaskStatus::Completed)
+            {
+                break;
+            }
 
-                        for s in 0..samples {
-                            let rate = (s as f64 + 1.0) / samples as f64;
-                            let r1 = sx as f64 * rate / 2.0;
-                            let r2 = sy as f64 * rate / 2.0;
+            let arc_completed_tasks = tasks_states.clone();
+            let process_y = {
+                let mut process_y = None;
 
-                            let screen_position = screen_center
-                                + screen_x * ((r1 + x as f64) / width as f64 - 0.5)
-                                + screen_y * ((r2 + y as f64) / height as f64 - 0.5);
+                let mut completed_tasks = arc_completed_tasks.lock().unwrap();
 
-                            let dir = (screen_position - camera_pos).normalize();
-
-                            accumulated_radiance = accumulated_radiance
-                                + self.radiance(
-                                    &Ray {
-                                        origin: camera_pos,
-                                        direction: dir,
-                                    },
-                                    &mut rnd,
-                                    0,
-                                );
-                        }
-                        image[image_index as usize] = image[image_index as usize]
-                            + accumulated_radiance / (samples * supersamples * supersamples) as f64;
+                for (i, completed) in completed_tasks.iter_mut().enumerate() {
+                    if *completed == TaskStatus::NotStarted {
+                        process_y = Some(i);
+                        *completed = TaskStatus::Running;
+                        break;
                     }
                 }
-            }
-        }
 
+                process_y
+            };
+
+            let arc_tasks_states = tasks_states.clone();
+            let arc_arc_image = arc_image.clone();
+            if let Some(y) = process_y {
+                s.spawn(move || {
+                    let y = y as u32;
+
+                    println!("Rendering (y = {} / {})", y, height);
+
+                    let mut rnd = XorShiftRandom::new(y + 1);
+
+                    let mut cache = vec![Vec3::new(0.0, 0.0, 0.0); width as usize];
+
+                    for x in 0..width {
+                        for sy in 0..supersamples {
+                            for sx in 0..supersamples {
+                                let mut accumulated_radiance = Color::new(0.0, 0.0, 0.0);
+
+                                for s in 0..samples {
+                                    let rate = (s as f64 + 1.0) / samples as f64;
+                                    let r1 = sx as f64 * rate / 2.0;
+                                    let r2 = sy as f64 * rate / 2.0;
+
+                                    let screen_position = screen_center
+                                        + screen_x * ((r1 + x as f64) / width as f64 - 0.5)
+                                        + screen_y * ((r2 + y as f64) / height as f64 - 0.5);
+
+                                    let dir = (screen_position - camera_pos).normalize();
+
+                                    accumulated_radiance = accumulated_radiance
+                                        + self.radiance(
+                                            &Ray {
+                                                origin: camera_pos,
+                                                direction: dir,
+                                            },
+                                            &mut rnd,
+                                            0,
+                                        );
+                                }
+                                cache[x as usize] = cache[x as usize]
+                                    + accumulated_radiance
+                                        / (samples * supersamples * supersamples) as f64;
+                            }
+                        }
+                    }
+
+                    {
+                        let mut image = arc_arc_image.lock().unwrap();
+                        for x in 0..width {
+                            image[(y * width + x) as usize] = cache[x as usize];
+                        }
+                    }
+
+                    {
+                        let mut completed_tasks = arc_tasks_states.lock().unwrap();
+                        completed_tasks[y as usize] = TaskStatus::Completed;
+                    }
+
+                    println!("Completed (y = {} / {})", y, height);
+                });
+            }
+        });
+
+        println!("Saving image...");
+
+        let image = image.lock().unwrap();
         save_ppm("image.ppm", &image, width, height);
     }
 
