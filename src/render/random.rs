@@ -15,4 +15,8 @@ impl XorShiftRandom {
         self.state = x;
         x
     }
+
+    pub fn next_f64(&mut self) -> f64 {
+        self.next() as f64 / std::u32::MAX as f64
+    }
 }
