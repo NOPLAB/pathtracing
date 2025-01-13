@@ -1,5 +1,6 @@
 use super::vec3::Vec3;
 
+#[derive(Debug, Clone, Copy)]
 pub struct HitPoint {
     pub distance: f64,
     pub normal: Vec3,
