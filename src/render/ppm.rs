@@ -2,7 +2,7 @@ use super::material::Color;
 
 use std::io::Write;
 
-fn save_ppm(file_name: &str, image: &[Color], width: u32, height: u32) {
+pub fn save_ppm(file_name: &str, image: &[Color], width: u32, height: u32) {
     let mut file = std::fs::File::create(file_name).unwrap();
     write!(file, "P3\n{} {}\n255\n", width, height).unwrap();
     for y in 0..height {
