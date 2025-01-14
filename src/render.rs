@@ -66,6 +66,9 @@ impl Render {
 
         let tasks_states = Arc::new(Mutex::new(vec![TaskStatus::NotStarted; height as usize]));
 
+        use std::time::Instant;
+        let now = Instant::now();
+
         let arc_image = image.clone();
         thread::scope(move |s| loop {
             let running_tasks = tasks_states
@@ -168,10 +171,18 @@ impl Render {
             }
         });
 
+        let elapsed = now.elapsed();
+        println!("Rendering Δt = {:.4?}", elapsed);
+
         println!("Saving image...");
+
+        let now = Instant::now();
 
         let image = image.lock().unwrap();
         save_ppm("image.ppm", &image, width, height);
+
+        let elapsed = now.elapsed();
+        println!("Exporting Δt = {:.4?}", elapsed);
     }
 
     fn radiance(&self, ray: &Ray, rnd: &mut XorShiftRandom, depth: u32) -> Color {
