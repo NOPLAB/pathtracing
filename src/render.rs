@@ -4,7 +4,6 @@ use std::{
 };
 
 use material::{Color, IOR};
-use ppm::save_ppm;
 use random::XorShiftRandom;
 use ray::Ray;
 use scene::Scene;
@@ -12,7 +11,7 @@ use vec3::Vec3;
 
 mod intersection;
 mod material;
-mod ppm;
+pub mod ppm;
 mod random;
 mod ray;
 mod scene;
@@ -34,23 +33,40 @@ enum TaskStatus {
     Completed,
 }
 
+#[derive(Clone, Copy, Debug)]
+pub struct RenderConfig {
+    pub width: u32,
+    pub height: u32,
+    pub tasks: u32,
+    pub samples: u32,
+    pub super_samples: u32,
+}
+
 pub struct Render {
+    config: RenderConfig,
     scene: Scene,
 }
 
 impl Render {
-    pub fn new() -> Render {
+    pub fn new(config: RenderConfig) -> Render {
         Render {
+            config,
             scene: Scene::new(),
         }
     }
 
-    pub fn render(&self, width: u32, height: u32, samples: u32, supersamples: u32, tasks: u32) {
+    pub fn render(&self) -> Vec<Color> {
+        let tasks = self.config.tasks;
+        let width = self.config.width;
+        let height = self.config.height;
+        let samples = self.config.samples;
+        let super_samples = self.config.super_samples;
+
         let camera_pos = Vec3::new(50.0, 52.0, 220.0);
         let camera_dir = Vec3::new(0.0, -0.04, -1.0).normalize();
         let camera_up = Vec3::new(0.0, 1.0, 0.0);
 
-        let screen_width = 30.0 * width as f64 / height as f64;
+        let screen_width = 30.0 * self.config.width as f64 / self.config.height as f64;
         let screen_height = 30.0;
 
         let screen_dist = 40.0;
@@ -61,10 +77,14 @@ impl Render {
 
         let image = Arc::new(Mutex::new(vec![
             Vec3::new(0.0, 0.0, 0.0);
-            (width * height) as usize
+            (self.config.width * self.config.height)
+                as usize
         ]));
 
-        let tasks_states = Arc::new(Mutex::new(vec![TaskStatus::NotStarted; height as usize]));
+        let tasks_states = Arc::new(Mutex::new(vec![
+            TaskStatus::NotStarted;
+            self.config.height as usize
+        ]));
 
         use std::time::Instant;
         let now = Instant::now();
@@ -122,8 +142,8 @@ impl Render {
                     let mut cache = vec![Vec3::new(0.0, 0.0, 0.0); width as usize];
 
                     for x in 0..width {
-                        for sy in 0..supersamples {
-                            for sx in 0..supersamples {
+                        for sy in 0..super_samples {
+                            for sx in 0..super_samples {
                                 let mut accumulated_radiance = Color::new(0.0, 0.0, 0.0);
 
                                 for s in 0..samples {
@@ -149,7 +169,7 @@ impl Render {
                                 }
                                 cache[x as usize] = cache[x as usize]
                                     + accumulated_radiance
-                                        / (samples * supersamples * supersamples) as f64;
+                                        / (samples * super_samples * super_samples) as f64;
                             }
                         }
                     }
@@ -171,18 +191,7 @@ impl Render {
             }
         });
 
-        let elapsed = now.elapsed();
-        println!("Rendering Δt = {:.4?}", elapsed);
-
-        println!("Saving image...");
-
-        let now = Instant::now();
-
-        let image = image.lock().unwrap();
-        save_ppm("image.ppm", &image, width, height);
-
-        let elapsed = now.elapsed();
-        println!("Exporting Δt = {:.4?}", elapsed);
+        return image.lock().unwrap().to_vec();
     }
 
     fn radiance(&self, ray: &Ray, rnd: &mut XorShiftRandom, depth: u32) -> Color {
