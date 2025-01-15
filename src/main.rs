@@ -24,6 +24,7 @@ fn main() {
     let image = render.render();
 
     let elapsed = now.elapsed();
+    let score = (20.0 / elapsed.as_secs_f64()) * 1000.0;
     println!("Rendering Δt = {:.4?}", elapsed);
 
     println!("Saving image...");
@@ -33,4 +34,5 @@ fn main() {
 
     let elapsed = now.elapsed();
     println!("Total Δt = {:.4?}", elapsed);
+    println!("Score: {:.4} points", score);
 }
