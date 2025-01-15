@@ -86,9 +86,6 @@ impl Render {
             self.config.height as usize
         ]));
 
-        use std::time::Instant;
-        let now = Instant::now();
-
         let arc_image = image.clone();
         thread::scope(move |s| loop {
             let running_tasks = tasks_states
