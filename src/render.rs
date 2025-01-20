@@ -259,7 +259,10 @@ impl Render {
                     weight = sphere.color / russian_roulette_probability;
                 }
                 material::RefrectionType::Refraction => {
-                    let refrection_ray = Ray::new(hit_point.position, ray.direction);
+                    let refrection_ray = Ray::new(
+                        hit_point.position,
+                        ray.direction - hitpoint.normal * 2.0 * hitpoint.normal.dot(ray.direction),
+                    );
                     let into = hitpoint.normal.dot(orienting_normal) > 0.0;
 
                     let nc = 1.0;
@@ -289,7 +292,7 @@ impl Render {
                             - (if into {
                                 -ddn
                             } else {
-                                refrection_ray.direction.dot(hitpoint.normal)
+                                refrection_ray.direction.dot(-1.0 * orienting_normal)
                             });
                         let re = r0 + (1.0 - r0) * c.powi(5);
                         let nnt2 = (if into { nt / nc } else { nc / nt }).powi(2);
