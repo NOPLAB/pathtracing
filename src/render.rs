@@ -126,7 +126,7 @@ impl Render {
                 process_y
             };
 
-            let arc_tasks_states = tasks_status.clone();
+            let arc_tasks_status = tasks_status.clone();
             let arc_arc_image = arc_image.clone();
             if let Some(y) = process_y {
                 s.spawn(move || {
@@ -178,7 +178,7 @@ impl Render {
                     }
 
                     {
-                        let mut completed_tasks = arc_tasks_states.lock().unwrap();
+                        let mut completed_tasks = arc_tasks_status.lock().unwrap();
                         completed_tasks[y as usize] = TaskStatus::Completed;
                     }
 
