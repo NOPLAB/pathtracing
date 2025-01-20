@@ -76,7 +76,7 @@ impl Render {
         let screen_center = camera_pos + camera_dir * screen_dist;
 
         let image = Arc::new(Mutex::new(vec![
-            Vec3::new(0.0, 0.0, 0.0);
+            Color::new(0.0, 0.0, 0.0);
             (self.config.width * self.config.height)
                 as usize
         ]));
@@ -136,15 +136,15 @@ impl Render {
 
                     let mut rnd = XorShiftRandom::new(y + 1);
 
-                    let mut cache = vec![Vec3::new(0.0, 0.0, 0.0); width as usize];
+                    let mut cache = vec![Color::new(0.0, 0.0, 0.0); width as usize];
 
                     for x in 0..width {
                         for sy in 0..super_samples {
                             for sx in 0..super_samples {
                                 let mut accumulated_radiance = Color::new(0.0, 0.0, 0.0);
 
-                                for s in 0..samples {
-                                    let rate = (s as f64 + 1.0) / samples as f64;
+                                for _ in 0..samples {
+                                    let rate = 1.0 / samples as f64;
                                     let r1 = sx as f64 * rate / 2.0;
                                     let r2 = sy as f64 * rate / 2.0;
 
@@ -162,11 +162,10 @@ impl Render {
                                             },
                                             &mut rnd,
                                             0,
-                                        );
+                                        ) / samples as f64
+                                            / (super_samples as f64 * super_samples as f64);
                                 }
-                                cache[x as usize] = cache[x as usize]
-                                    + accumulated_radiance
-                                        / (samples * super_samples * super_samples) as f64;
+                                cache[x as usize] = cache[x as usize] + accumulated_radiance;
                             }
                         }
                     }
