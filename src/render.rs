@@ -223,22 +223,23 @@ impl Render {
             match sphere.reflection_type {
                 material::RefrectionType::Diffuse => {
                     let w = orienting_normal;
-                    let u = if w.x.abs() > 0.1 {
-                        Vec3::new(0.0, 1.0, 0.0)
+                    let u = if w.x.abs() > f64::EPSILON {
+                        Vec3::new(0.0, 1.0, 0.0).cross(w).normalize()
                     } else {
-                        Vec3::new(1.0, 0.0, 0.0)
+                        Vec3::new(1.0, 0.0, 0.0).cross(w).normalize()
                     };
                     let v = w.cross(u);
 
                     let r1 = 2.0 * std::f64::consts::PI * rnd.next_f64();
                     let r2 = rnd.next_f64();
                     let r2s = r2.sqrt();
-                    let dir = Vec3::new(r1.cos() * r2s, r1.sin() * r2s, (r2.sqrt()).sqrt());
+                    let dir = (u * r1.cos() * r2s + v * r1.sin() * r2s + w * (1.0 - r2).sqrt())
+                        .normalize();
 
                     incoming_radiance = self.radiance(
                         &Ray {
                             origin: hitpoint.position,
-                            direction: u * dir.x + v * dir.y + w * dir.z,
+                            direction: dir,
                         },
                         rnd,
                         depth + 1,
