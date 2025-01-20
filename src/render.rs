@@ -81,14 +81,14 @@ impl Render {
                 as usize
         ]));
 
-        let tasks_states = Arc::new(Mutex::new(vec![
+        let tasks_status = Arc::new(Mutex::new(vec![
             TaskStatus::NotStarted;
             self.config.height as usize
         ]));
 
         let arc_image = image.clone();
         thread::scope(move |s| loop {
-            let running_tasks = tasks_states
+            let running_tasks = tasks_status
                 .lock()
                 .unwrap()
                 .iter()
@@ -100,7 +100,7 @@ impl Render {
                 continue;
             }
 
-            if tasks_states
+            if tasks_status
                 .lock()
                 .unwrap()
                 .iter()
@@ -109,7 +109,7 @@ impl Render {
                 break;
             }
 
-            let arc_completed_tasks = tasks_states.clone();
+            let arc_completed_tasks = tasks_status.clone();
             let process_y = {
                 let mut process_y = None;
 
@@ -126,7 +126,7 @@ impl Render {
                 process_y
             };
 
-            let arc_tasks_states = tasks_states.clone();
+            let arc_tasks_states = tasks_status.clone();
             let arc_arc_image = arc_image.clone();
             if let Some(y) = process_y {
                 s.spawn(move || {
